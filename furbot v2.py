@@ -97,7 +97,7 @@ def get_message(user_name):
               'To blacklist yourself, say "furbot stop". Comments from this bot that go below 0 will be deleted.')
 
     # split() returns a list of words, join() puts it back together
-    full_message = body + " ^^^".join(footer.split())
+    full_message = body + "^^^" + " ^^^".join(footer.split())
     return full_message
 
 
