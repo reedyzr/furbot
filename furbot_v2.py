@@ -305,6 +305,12 @@ def get_message(user_name, mode, search_tags):
     if mode == 'owo':
         body = 'Congratulations, ' + str(author) + '! That was the **' + get_owo_count() + 'th** owo since I ' \
                 'started to track them.\n\n---\n\n'
+    if mode == 'owo_bulge':
+        body = ('*notices ' + str(user_name) + '\'s bulge*'
+                '\n\n&nbsp;\n\n I heard you say owo, so have a bulge, '
+                'compliments of e621. (likely nsfw) \n\n' + get_link(link, mode) + '\n\n'
+                '---\n\n'
+                )
     if mode == 'furbot':
         body = '\>///< Okay, I guess if you want to see me. \n\n' + get_link(basic_furbot_link, mode) + '\n\n---\n\n'
     if mode == 'good bot':
@@ -673,9 +679,15 @@ try:
                 comment.reply(check_hidden_command)
                 has_commented = True
         elif check_id(comment_id) and ('owo' in text.lower() or '0w0' in text.lower()):
-                if check_user(author):
-                    add_id(comment_id)
-                    check_owo(comment)
+            if check_id(comment_id) and check_user(author):
+                add_id(comment_id)
+                check_owo(comment)
+                if int(get_owo_count()) % 50 == 0:
+                    message = get_message(author, 'owo_bulge', ["bulge"])
+                    comment.reply(message)
+                    comment_count += 1
+                    print(comment_count)
+                    wait()
 except requests.exceptions.HTTPError as e:
     print('waiting...')
     wait()
