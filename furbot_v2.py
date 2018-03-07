@@ -308,7 +308,7 @@ def get_message(user_name, mode, search_tags):
     if mode == 'owo_bulge':
         body = ('*notices ' + str(user_name) + '\'s bulge*'
                 '\n\n&nbsp;\n\n I heard you say owo, so have a bulge, '
-                'compliments of e621. (likely nsfw) \n\n' + get_link(link, mode) + '\n\n'
+                'compliments of e621. (likely nsfw) \n\n' + get_link(search(search_tags, banned_tag_list, "search"), mode) + '\n\n'
                 '---\n\n'
                 )
     if mode == 'furbot':
