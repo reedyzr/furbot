@@ -278,10 +278,15 @@ def get_message(user_name, mode, search_tags):
                 'compliments of e926. \n\n' + get_link(sfw_link, mode) + '\n\n'
                 '---\n\n'
                 )
-    if mode == 'search' or mode == 'sfw search' or mode == 'mild search':
+    if mode == 'search' or mode == 'mild search':
         tag_list = ' '.join(search_tags)
         body = ('Hi, ' + str(user_name) + '. Here is the results for your search for these search tags:'
-                ' \n\n' + tag_list + '\n\n' + get_link(search(search_tags, banned_tag_list, mode), mode) + '\n\n'
+                ' \n\n' + tag_list + '\n\n' + get_link(search(search_tags, global_banned_tag_list + nsfw_banned_tag_list, mode), mode) + '\n\n'
+                '---\n\n')
+    if mode == 'sfw search':
+	    tag_list = ' '.join(search_tags)
+        body = ('Hi, ' + str(user_name) + '. Here is the results for your search for these search tags:'
+                ' \n\n' + tag_list + '\n\n' + get_link(search(search_tags, global_banned_tag_list, mode), mode) + '\n\n'
                 '---\n\n')
     if mode == 'denied':
         body = ('Oops! Mod Daddy will beat me if I search something like that! Sorry!' + '\n\n'
@@ -421,9 +426,10 @@ def add_owo_list(owo_num, username):
 # Due to how I have changed it, it doesn't need the try, but as soon as I remove it, it crashes.
 # So it stays, as it doesn't alter anything.
 try:
-    banned_tag_list = get_blacklist()
-    link = basic_link + apply_blacklist(banned_tag_list)
-    sfw_link = basic_sfw_link + apply_blacklist(banned_tag_list)
+    global_banned_tag_list = get_blacklist()
+    nsfw_banned_tag_list = ['feral', 'cub', 'young']
+    link = basic_link + apply_blacklist(global_banned_tag_list + nsfw_banned_tag_list)
+    sfw_link = basic_sfw_link + apply_blacklist(global_banned_tag_list)
     for comment in comments:
         text = comment.body
         author = str(comment.author)
@@ -473,7 +479,7 @@ try:
                 cheese = False
                 i = 0
                 while i < len(tags) and pure:
-                    pure = check_tag(tags[i], banned_tag_list)
+                    pure = check_tag(tags[i], global_banned_tag_list + nsfw_banned_tag_list)
                     cheese = check_cheese(tags[i])
                     i += 1
                 if pure and not cheese:
@@ -519,7 +525,7 @@ try:
                 cheese = False
                 i = 0
                 while i < len(tags) and pure and not cheese:
-                    pure = check_tag(tags[i], banned_tag_list)
+                    pure = check_tag(tags[i], global_banned_tag_list)
                     cheese = check_cheese(tags[i])
                     i += 1
                 if pure and not cheese:
@@ -566,7 +572,7 @@ try:
                 cheese = False
                 i = 0
                 while i < len(tags) and pure and not cheese:
-                    pure = check_tag(tags[i], banned_tag_list)
+                    pure = check_tag(tags[i], global_banned_tag_list + nsfw_banned_tag_list)
                     cheese = check_cheese(tags[i])
                     i += 1
                 if pure and not cheese:
@@ -644,12 +650,12 @@ try:
                 i = 0
                 newly_banned_tags = ''
                 while i < len(tags):
-                    new_tag = check_tag(tags[i], banned_tag_list)
+                    new_tag = check_tag(tags[i], global_banned_tag_list)
                     if new_tag:
                         add_to_blacklist(tags[i])
                         newly_banned_tags += tags[i] + ' '
                     i += 1
-                banned_tag_list = get_blacklist()
+                global_banned_tag_list = get_blacklist()
                 if newly_banned_tags != '':
                     message = get_message(author, 'ban', newly_banned_tags)
                     print('banned ' + newly_banned_tags)
