@@ -650,7 +650,7 @@ try:
                 i = 0
                 newly_banned_tags = ''
                 while i < len(tags):
-                    new_tag = check_tag(tags[i], global_banned_tag_list)
+                    new_tag = check_tag(tags[i], global_banned_tag_list + nsfw_banned_tag_list)
                     if new_tag:
                         add_to_blacklist(tags[i])
                         newly_banned_tags += tags[i] + ' '
