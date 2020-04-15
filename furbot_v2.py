@@ -6,6 +6,7 @@ import requests
 import tag_helper
 import comment_remover
 import re
+import json
 
 # gotta have a user agent for the request
 header = {
@@ -49,9 +50,9 @@ subreddit = bot.subreddit('furry_irl+furrystarterpacks+furrypasta')
 comments = subreddit.stream.comments()
 comment_count = 0
 has_commented = False
-basic_link = 'https://e621.net/post/atom?tags=order%3Arandom+rating%3Ae+score%3A%3E25'
-basic_sfw_link = 'https://e621.net/post/atom?tags=order%3Arandom+rating%3As+score%3A%3E25'
-basic_furbot_link = 'https://e621.net/post/atom?tags=order%3Arandom+furbot'
+basic_link = 'https://e621.net/posts.json?tags=order%3Arandom+rating%3Ae+score%3A>25'
+basic_sfw_link = 'https://e621.net/posts.json?tags=order%3Arandom+rating%3As+score%3A>25'
+basic_furbot_link = 'https://e621.net/posts.json?tags=order%3Arandom+furbot'
 
 
 # Prevents the bot from getting spammy.
@@ -83,76 +84,72 @@ def check_id(given_id):
 # Gets a link for the bot to reply with.
 def get_link(check_url, mode):
     r = requests.get(check_url, headers=header)
-    contents = str(r.content)
-    sample = 'http://e621.net/post/show/'
-    tag_sample = '<entry>'
-    source_sample = 'https://static'
-    number = contents.find(sample)
-    tag_number = contents.find(tag_sample) + 22
-    source_number = contents.find(source_sample)
-    if number < 0:
-        if mode == 'search':
-            return ('no results found, you may have an invalid tag, or all posts for your tags have a score below 25'
-                    '\n It is also possible no posts have an explicit rating, this bot search for that with this mode.')
-        if mode == 'sfw search':
-            return ('no results found, you may have an invalid tag, or all posts for your tags have a score below 25'
-                    '\n It is also possible no posts have an safe rating, this bot search for that with this mode.')
-        if mode == 'mild search':
-            return ('no results found, you may have an invalid tag, or all posts for your tags have a score below 25'
-                    '\n It is also possible no posts have an questionable rating, this bot search for that with this'
-                    ' mode.')
-        if mode == 'furbot':
-            return 'Sorry, I think something went wrong with e621.'
-        if mode == 'e621' or mode == 'e926':
-            return 'An error has occurred, ' + mode + ' may be down'
+    # parse the response json into a list of dicts, where each post is a dict
+    posts = list(json.loads(r.text)["posts"])
+    # if the list is empty, no posts were found
+    if len(posts) == 0:
+        if mode == "search":
+            return (
+                "no results found, you may have an invalid tag, or all posts for your tags have a score below 25"
+                "\n It is also possible no posts have an explicit rating, this bot search for that with this mode."
+            )
+        if mode == "sfw search":
+            return (
+                "no results found, you may have an invalid tag, or all posts for your tags have a score below 25"
+                "\n It is also possible no posts have a safe rating, this bot search for that with this mode."
+            )
+        if mode == "mild search":
+            return (
+                "no results found, you may have an invalid tag, or all posts for your tags have a score below 25"
+                "\n It is also possible no posts have a questionable rating, this bot search for that with this"
+                " mode."
+            )
+        if mode == "furbot":
+            return "Sorry, I think something went wrong with e621."
+        if mode == "e621" or mode == "e926":
+            return "An error has occurred, " + mode + " may be down"
         else:
-            return 'Oops, some part of the hidden command broke.'
+            return "Oops, some part of the hidden command broke."
+    # select first post
+    first_post = posts[0]
+
+    # Find url of first post. Oddly everything else has a cool direct link into it, but the json only supplies the id of the post.
+    url = "https://e621.net/posts/" + str(first_post["id"])
+
+    # Tags are separated into general species etc so combine them into one.
+    tag_list = (
+        first_post["tags"]["general"]
+        + first_post["tags"]["species"]
+        + first_post["tags"]["character"]
+        + first_post["tags"]["copyright"]
+        + first_post["tags"]["artist"]
+        + first_post["tags"]["invalid"]
+        + first_post["tags"]["lore"]
+        + first_post["tags"]["meta"]
+    )
+
+    # Check for swf/flash first before setting direct link to full image.
+    if first_post["file"]["ext"] == "swf":
+        direct_link = "flash"
     else:
-        clipped = contents[number:]
-        tag_clipped = contents[tag_number:]
-        source_clipped = contents[source_number:]
-        number_two = clipped.find('\"')
-        tag_number_two = tag_clipped.find('<')
-        source_number_two = source_clipped.find('\"')
-        url = clipped[:number_two]
-        post_tags = tag_clipped[:tag_number_two - 1]
-        basic_source = source_clipped[:source_number_two]
-        if basic_source == 'https://static1.e621.net/images/download-preview.png':
-            source = 'flash'
-        else:
-            source = get_source(url, basic_source)
-        if mode == 'e926':
-            url = url.replace('e621', 'e926')
-            source = source.replace('e621', 'e926')
-        url = url.replace('http://', 'https://')
-        source = source.replace('http://', 'https://')
-        result = url_and_tags(url, source, post_tags)
-        return result
+        direct_link = first_post["file"]["url"]
+    # The helper method "get_source" was cut since it isn't necessary with json.
+    # The source variable was renamed to direct_link as the json result actually has the real source links, too.
 
+    if mode == "e926":
+        url = url.replace("e621", "e926")
+    # Shouldn't be necessary, but doesn't hurt: ?
+    url = url.replace("http://", "https://")
+    direct_link = direct_link.replace("http://", "https://")
 
-# Helper method to find the direct url of the post
-def get_source(post_url, sample):
-    r = requests.get(post_url, headers=header)
-    contents = str(r.content)
-    basic_sample = '/preview/'
-    post_id_cut_spot = sample.find(basic_sample) + 9
-    post_id_part = sample[post_id_cut_spot:]
-    post_id_cut_spot_two = post_id_part.find('.')
-    post_id = post_id_part[:post_id_cut_spot_two]
-    id_length = len(post_id)
-    contents_cut_spot = contents.find(post_id)
-    contents_cut = contents[contents_cut_spot + id_length + 10:]
-    contents_cut_spot = contents_cut.find('https://static1.e621.net/data/' + post_id)
-    contents_cut_more = contents_cut[contents_cut_spot:]
-    contents_cut_spot = contents_cut_more.find('\"')
-    contents_final_cut = contents_cut_more[:contents_cut_spot]
-    return contents_final_cut
+    result = url_and_tags(url, direct_link, tag_list)
+    return result
 
 
 # Does some cleanup to tag massive tag list and adds it to the URL and sends it back.
 # Calls tag_hyper.py to do the sorting
 def url_and_tags(url, source, post_tags):
-    full_tag_list = post_tags.split()
+    full_tag_list = post_tags
     if len(full_tag_list) > 25:
         better_tag_list = tag_helper.start_searching(full_tag_list)
         tag_list = " ^^^^".join(better_tag_list)
@@ -165,7 +162,7 @@ def url_and_tags(url, source, post_tags):
     post_url = '[Post](' + str(url) + ') | '
     source_url = 'Sorry, this is a flash animation. A direct link would download it.'
     if source != 'flash':
-        source_url = '[Direct Link](' + str(source) + ')'
+        source_url = '[Direct Link](' + source + ')'
     return post_url + source_url + body + tag_list
 
 
@@ -357,15 +354,15 @@ def apply_blacklist(banned_tags):
 
 # Does some tweaking to the search.
 def search(search_tags, banned_tags, mode):
-    basic_url = 'https://e621.net/post/atom?tags=order%3Arandom+score%3A%3E25'
-    if mode == 'search':
-        basic_url += '+rating%3Ae+'
-    if mode == 'sfw search':
-        basic_url += '+rating%3As+'
-    if mode == 'mild search':
-        basic_url += '+rating%3Aq+'
-    taglist = '+'.join(search_tags)
-    blacklist = '+-' + '+-'.join(banned_tags)
+    basic_url = "https://e621.net/posts.json?tags=order%3Arandom+score%3A>25"
+    if mode == "search":
+        basic_url += "+rating%3Ae"
+    if mode == "sfw search":
+        basic_url += "+rating%3As"
+    if mode == "mild search":
+        basic_url += "+rating%3Aq"
+    taglist = "+" + "+".join(search_tags)
+    blacklist = "+-" + "+-".join(banned_tags)
     url = basic_url + taglist + blacklist
     return url
 
